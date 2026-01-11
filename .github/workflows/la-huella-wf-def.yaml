@@ -1,4 +1,4 @@
-name: La Huella Pipeline
+name: La Huella Pipeline Definitivo
 
 on:
   push:
@@ -7,50 +7,85 @@ on:
   workflow_dispatch:
 
 jobs:
-  localstack-job:
-    runs-on: self-hosted   # runner propio (nodo 1)
+  la-huella-def-job:
+    runs-on: self-hosted   # runner propio
+
+    env:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LOCALSTACK_ENDPOINT: http://midominio.local
 
     steps:
       - name: Checkout del repositorio
         uses: actions/checkout@v4
 
-      - name: Parar contenedores existentes
+      - name: Comprobar k3s instalado
         run: |
-          docker compose down || true
+          if ! command -v k3s >/dev/null; then
+            curl -sfL https://get.k3s.io | sh -
+          fi
 
-      - name: Actualizar imágenes Docker
+      - name: Exportar kubeconfig
         run: |
-          docker compose pull
+          mkdir -p ~/.kube
+          sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+          sudo chown $USER:$USER ~/.kube/config
 
-      - name: Iniciar Localstack
-        run: |
-          docker compose up -d
+      - name: Esperar cluster Ready
+        run: kubectl wait --for=condition=Ready nodes --all --timeout=120s
 
-      - name: Esperar a que Localstack esté listo
-        run: |
-          echo "Esperando 60 segundos a Localstack..."
-          sleep 120
 
-      - name: Crear recursos AWS (S3, DynamoDB, SQS, Logs)
+      - name: Añadir LocalStack Helm repo
         run: |
-          chmod +x scripts/01-create-resources.sh
-          ./scripts/01-create-resources.sh
+          helm repo add localstack https://localstack.github.io/helm-charts
+          helm repo update
 
-      - name: Insertar datos de ejemplo
+      - name: Desplegar LocalStack
         run: |
-          chmod +x scripts/02-insert-sample-data.sh
-          ./scripts/02-insert-sample-data.sh
+          helm upgrade --install localstack7 localstack/localstack -f 0-localstack-values.yaml -n mission7
+
+      - name: Esperar LocalStack levantado
+        run: |
+          until curl -s $LOCALSTACK_ENDPOINT/_localstack/health; do
+            sleep 5
+          done
+
+      - name: Instalar Ingress para LocalStack
+        run: kubectl apply -f 0-ingress-localstack.yaml -n mission7
+
+        name: Crear Terraform state bucket (si no existe)
+        run: |
+          aws s3 mb s3://la-huella-remote-state \
+            --endpoint-url=$LOCALSTACK_ENDPOINT || true
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -reconfigure
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Inicalización de recursos (solo si es necesario)
+        run: |
+          ./scripts/init.sh
+
+      - name: Trigger application deploy workflow
+        env:
+          GH_TOKEN: ${{ secrets.GH_APP_TOKEN }}
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            https://api.github.com/repos/javierfg1/la-huella-terraform/actions/workflows/la-huella-wf-def.yaml/dispatches \
+            -d '{"ref":"main"}'
 
       - name: Verificar recursos en Localstack
         run: |
           echo "Verificando S3..."
-          aws --endpoint-url=http://localhost:4566 s3 ls --region eu-west-1
+          aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls --region $AWS_REGION
 
           echo "Verificando DynamoDB..."
-          aws --endpoint-url=http://localhost:4566 dynamodb list-tables --region eu-west-1
-
-          echo "Verificando SQS..."
-          aws --endpoint-url=http://localhost:4566 sqs list-queues --region eu-west-1
-
-          echo "Verificando Grupos de Logs..."
-          aws --endpoint-url=http://localhost:4566 logs --region eu-west-1 describe-log-groups
+          aws --endpoint-url=http://localhost:4566 dynamodb list-tables --region $AWS_REGION
