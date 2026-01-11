@@ -74,7 +74,7 @@ jobs:
           chmod +x scripts/init.sh
           ./scripts/init.sh
 
-      - name: Trigger application deploy workflow
+      - name: Lanzar application deploy workflow
         env:
           GH_TOKEN: ${{ secrets.GH_APP_TOKEN }}
         run: |
@@ -93,16 +93,16 @@ jobs:
           aws --endpoint-url=$LOCALSTACK_ENDPOINT dynamodb list-tables --region $AWS_REGION
 
 
-          - name: Comprobar que la app está ready
-            run: |
-              echo "Waiting for app at http://172.27.0.1/ ..."
-              for i in {1..30}; do
-                if curl -sf http://172.27.0.1/ > /dev/null; then
-                  echo "✅ App is up"
-                  exit 0
-                fi
-                echo "⏳ Not ready yet... retrying"
-                sleep 5
-              done
-              echo "❌ App did not become ready in time"
-              exit 1
+      - name: Comprobar que la app está ready
+        run: |
+          echo "Waiting for app at http://172.27.0.1/ ..."
+          for i in {1..30}; do
+            if curl -sf http://172.27.0.1/ > /dev/null; then
+              echo "✅ App is up"
+              exit 0
+            fi
+            echo "⏳ Not ready yet... retrying"
+            sleep 5
+          done
+          echo "❌ App did not become ready in time"
+          exit 1
