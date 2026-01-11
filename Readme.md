@@ -1008,7 +1008,13 @@ secrets.GH_APP_TOKEN es una variable secreta del repo u organización.
 
     https://github.com/la-huella/la-huella-terraform/security/secret-scanning/unblock-secret/387j5VxDVED8XRi86kIKK9a3bJ0
 
-    
+
+    En runner grups / default, hay que seleccionar "Allow public repositories", paqra que el runner detecte los wf de los repos.
+
+    https://github.com/organizations/la-huella/settings/actions/runner-groups/1
+
+
+
 
 
 
