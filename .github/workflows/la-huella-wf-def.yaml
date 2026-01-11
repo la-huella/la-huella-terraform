@@ -76,8 +76,7 @@ jobs:
 
       - name: Lanzar application deploy workflow
         env:
-          #GH_TOKEN: ${{ secrets.GH_APP_TOKEN }}
-          GH_TOKEN: test
+          GH_TOKEN: ${{ secrets.GH_APP_TOKEN }}
         run: |
           curl -X POST \
             -H "Accept: application/vnd.github+json" \
