@@ -81,7 +81,7 @@ jobs:
           curl -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $GH_TOKEN" \
-            https://api.github.com/repos/javierfg1/la-huella-terraform/actions/workflows/la-huella-wf-def.yaml/dispatches \
+            https://api.github.com/repos/javierfg1/eu-devops-7-la-huella-main-etapa4/actions/workflows/la-huella-wf-app.yaml/dispatches \
             -d '{"ref":"main"}'
 
       - name: Verificar recursos en Localstack
@@ -90,4 +90,19 @@ jobs:
           aws --endpoint-url=$LOCALSTACK_ENDPOINT s3 ls --region $AWS_REGION
 
           echo "Verificando DynamoDB..."
-          aws --endpoint-url=http://localhost:4566 dynamodb list-tables --region $AWS_REGION
+          aws --endpoint-url=$LOCALSTACK_ENDPOINT dynamodb list-tables --region $AWS_REGION
+
+
+          - name: Comprobar que la app está ready
+            run: |
+              echo "Waiting for app at http://172.27.0.1/ ..."
+              for i in {1..30}; do
+                if curl -sf http://172.27.0.1/ > /dev/null; then
+                  echo "✅ App is up"
+                  exit 0
+                fi
+                echo "⏳ Not ready yet... retrying"
+                sleep 5
+              done
+              echo "❌ App did not become ready in time"
+              exit 1
