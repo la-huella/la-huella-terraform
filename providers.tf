@@ -1,19 +1,18 @@
 provider "aws" {
-  region = var.region
+  region = var.aws_region
 
-  access_key                  = "test"
-  secret_key                  = "test"
+  # Para LocalStack (opcional)
+  endpoints {
+    s3         = var.aws_endpoint
+    dynamodb   = var.aws_endpoint
+    sqs        = var.aws_endpoint
+    logs       = var.aws_endpoint
+  }
 
-  s3_use_path_style           = true
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
 
-  endpoints {
-    s3         = "http://midominio.local"
-    dynamodb   = "http://midominio.local"
-    sqs        = "http://midominio.local"
-    cloudwatch = "http://midominio.local"
-  }
+  s3_use_path_style = true
 
 }

@@ -4,6 +4,7 @@ terraform {
     key                         = "mission7/terraform.tfstate"
     region                      = "us-east-1"
     endpoint                    = "http://midominio.local"
+    dynamodb_endpoint           = "http://midominio.local"
 
     dynamodb_table              = "terraform-locks"
 
@@ -18,5 +19,3 @@ terraform {
     force_path_style            = true
   }
 }
-
-
